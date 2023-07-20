@@ -25,7 +25,7 @@ def check_price_pult(user_id, url):
         if price_from_pult != new_price:
             price_from_pult = new_price
             bot.send_message(user_id, new_price)
-        time.sleep(3600)
+        time.sleep(600)
 
 
 @bot.message_handler(commands=['start'])
