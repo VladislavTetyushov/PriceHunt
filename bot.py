@@ -7,21 +7,24 @@ import os
 
 load_dotenv()
 bot = telebot.TeleBot(os.getenv('TOKEN'));
-pult_url = 'https://www.pult.ru/'
-need_check_pult = True
+
+need_check = True
 price_from_pult = 0
+price_from_citilink = 0
+price_from_doctorhead = 0
+url_list = []
 
 markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-btn1 = types.KeyboardButton("магазин PULT")
+btn1 = types.KeyboardButton("Ввести ссылки")
 btn2 = types.KeyboardButton("stop PULT")
 markup.add(btn1, btn2)
 
 
-def check_price_pult(user_id, url):
-    global need_check_pult
+def check_price(user_id, url):
+    global need_check
     global price_from_pult
-    while need_check_pult:
-        new_price = scraper.get_price_from_pult(url)
+    while need_check:
+        new_price = scraper.get_price(url)
         if price_from_pult != new_price:
             price_from_pult = new_price
             bot.send_message(user_id, new_price)
@@ -42,21 +45,38 @@ def stop(message):
 
 @bot.message_handler(content_types=['text'])
 def get_text_messages(message):
-    global need_check_pult
-    if message.text == "магазин PULT":
-        bot.send_message(message.from_user.id, "Введи ссылку на PULT")
+    global need_check
+    global url_list
+    if message.text == "Ввести ссылки":
+        bot.send_message(message.from_user.id, "Отправьте ссылки на магазины")
 
-    elif message.text[:len(pult_url)] == pult_url:
-        bot.send_message(message.from_user.id, "Ссылка добавлена, начинаю отслеживание 👀")
-        need_check_pult = True
-        check_price_pult(message.from_user.id, message.text)
+    elif message.text[:len(scraper.pult_url)] == scraper.pult_url or \
+            message.text[:len(scraper.citilink_url)] == scraper.citilink_url or \
+            message.text[:len(scraper.doctorhead_url)] == scraper.doctorhead_url:
+        url_list.append(message.text)
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        btn1 = types.KeyboardButton("Нет")
+        btn2 = types.KeyboardButton("Да")
+        markup.add(btn1, btn2)
+
+        bot.send_message(message.from_user.id, "Ссылка добавлена, добавить еще? 👀", reply_markup=markup)
+
+    elif message.text == "Да":
+        bot.send_message(message.from_user.id, "Жду ссылку :)")
+
+    elif message.text == "Нет":
+        need_check = True
+        bot.send_message(message.from_user.id, "Начинаю отслеживание 👀")
+        print(url_list)
+        check_price(message.from_user.id, url_list[0])
+        check_price(message.from_user.id, url_list[1])
 
     elif message.text == "/help":
         bot.send_message(message.from_user.id, "Привет, введи ссылку на товар с сайта pult")
 
     elif message.text == "stop PULT":
         bot.send_message(message.from_user.id, "Отслеживание прекращено")
-        need_check_pult = False
+        need_check = False
 
     else:
         bot.send_message(message.from_user.id, "Я тебя не понимаю. Напиши /help.")
