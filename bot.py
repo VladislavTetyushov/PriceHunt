@@ -1,9 +1,9 @@
+import time
 import telebot
 from telebot import types
 import scraper
 from dotenv import load_dotenv
 import os
-import threading
 from urllib.parse import urlparse
 
 load_dotenv()
@@ -34,13 +34,14 @@ def get_company_name(url):
 def check_price(user_id, urls):
     global need_check
     global price_from_pult
-    if need_check:
+    while need_check:
+        bot.send_message(user_id, "Я весь в работе")
         for url in urls.items():
             new_price = scraper.get_price(url[1])
             if price_from_pult != new_price:
                 price_from_pult = new_price
                 bot.send_message(user_id, url[0] + ": " + new_price + "р")
-        threading.Timer(interval, check_price, args=(user_id, urls))
+        time.sleep(600)
 
 
 @bot.message_handler(commands=['start'])
