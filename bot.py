@@ -1,9 +1,10 @@
-import time
 import telebot
 from telebot import types
 import scraper
 from dotenv import load_dotenv
 import os
+import threading
+from urllib.parse import urlparse
 
 load_dotenv()
 bot = telebot.TeleBot(os.getenv('TOKEN'));
@@ -12,23 +13,34 @@ need_check = True
 price_from_pult = 0
 price_from_citilink = 0
 price_from_doctorhead = 0
-url_list = []
+url_dict = {}
+active_thread = []
+interval = 600
 
 markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 btn1 = types.KeyboardButton("Ввести ссылки")
-btn2 = types.KeyboardButton("stop PULT")
+btn2 = types.KeyboardButton("Прекратить отслеживание")
 markup.add(btn1, btn2)
 
 
-def check_price(user_id, url):
+def get_company_name(url):
+    parsed_url = urlparse(url)
+    website_name = parsed_url.netloc.split('.')
+    if len(website_name) == 3:
+        return website_name[1]
+    return website_name[0]
+
+
+def check_price(user_id, urls):
     global need_check
     global price_from_pult
-    while need_check:
-        new_price = scraper.get_price(url)
-        if price_from_pult != new_price:
-            price_from_pult = new_price
-            bot.send_message(user_id, new_price)
-        time.sleep(600)
+    if need_check:
+        for url in urls.items():
+            new_price = scraper.get_price(url[1])
+            if price_from_pult != new_price:
+                price_from_pult = new_price
+                bot.send_message(user_id, url[0] + ": " + new_price + "р")
+        threading.Timer(interval, check_price, args=(user_id, urls))
 
 
 @bot.message_handler(commands=['start'])
@@ -46,14 +58,14 @@ def stop(message):
 @bot.message_handler(content_types=['text'])
 def get_text_messages(message):
     global need_check
-    global url_list
+    global url_dict
     if message.text == "Ввести ссылки":
         bot.send_message(message.from_user.id, "Отправьте ссылки на магазины")
 
     elif message.text[:len(scraper.pult_url)] == scraper.pult_url or \
             message.text[:len(scraper.citilink_url)] == scraper.citilink_url or \
             message.text[:len(scraper.doctorhead_url)] == scraper.doctorhead_url:
-        url_list.append(message.text)
+        url_dict[get_company_name(message.text)] = message.text
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         btn1 = types.KeyboardButton("Нет")
         btn2 = types.KeyboardButton("Да")
@@ -67,14 +79,13 @@ def get_text_messages(message):
     elif message.text == "Нет":
         need_check = True
         bot.send_message(message.from_user.id, "Начинаю отслеживание 👀")
-        print(url_list)
-        check_price(message.from_user.id, url_list[0])
-        check_price(message.from_user.id, url_list[1])
+        print(url_dict)
+        check_price(message.from_user.id, url_dict)
 
     elif message.text == "/help":
         bot.send_message(message.from_user.id, "Привет, введи ссылку на товар с сайта pult")
 
-    elif message.text == "stop PULT":
+    elif message.text == "Прекратить отслеживание":
         bot.send_message(message.from_user.id, "Отслеживание прекращено")
         need_check = False
 
