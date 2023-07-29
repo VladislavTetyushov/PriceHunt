@@ -13,9 +13,11 @@ def get_price(url):
     if url[:len(pult_url)] == pult_url:
         price = soup.find("div", class_="amount amount--lg amount--current")
         price = price.get_text().replace(" ", "").replace("\n", "")
+
     elif url[:len(citilink_url)] == citilink_url:
-        price = soup.find("span", class_="e1j9birj0 e106ikdt0 app-catalog-1f8xctp e1gjr6xo0")
+        price = soup.find("a", class_="app-catalog-9gnskf e1259i3g0")
         price = price.get_text().replace(" ", "").replace("\n", "")
+
     elif url[:len(doctorhead_url)] == doctorhead_url:
         price = soup.find("span", class_="nowrap")
         price = price.get_text().replace(" ", "").replace("\n", "")

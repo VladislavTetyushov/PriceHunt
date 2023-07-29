@@ -5,6 +5,7 @@ import scraper
 from dotenv import load_dotenv
 import os
 from urllib.parse import urlparse
+import SQLdata
 
 load_dotenv()
 bot = telebot.TeleBot(os.getenv('TOKEN'));
@@ -49,6 +50,7 @@ def start(message):
     bot.send_message(message.chat.id,
                      text="Привет, {0.first_name}!".format(
                          message.from_user), reply_markup=markup)
+    SQLdata.execute_query(f"INSERT INTO users (user_id, message) VALUES ({message.chat.id}, \"lolol\")")
 
 
 @bot.message_handler(commands=['stop'])
