@@ -50,7 +50,7 @@ def start(message):
     bot.send_message(message.chat.id,
                      text="Привет, {0.first_name}!".format(
                          message.from_user), reply_markup=markup)
-    SQLdata.execute_query(f"INSERT INTO users (user_id, message) VALUES ({message.chat.id}, \"lolol\")")
+    SQLdata.execute_query(f"INSERT INTO users (user_id) VALUES ({message.chat.id})")
 
 
 @bot.message_handler(commands=['stop'])
