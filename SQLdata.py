@@ -1,10 +1,11 @@
 import os
 import sqlite3
+
 from dotenv import load_dotenv
 
 load_dotenv()
-
 data_filename = os.getenv("DATABASE_PATH")
+assert data_filename is not None
 
 
 def execute_query(query):

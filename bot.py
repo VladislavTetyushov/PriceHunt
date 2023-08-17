@@ -1,21 +1,23 @@
-import time
-import telebot
-from telebot import types
-import scraper
-from dotenv import load_dotenv
 import os
+import time
 from urllib.parse import urlparse
-import SQLdata
+
+import telebot
+from dotenv import load_dotenv
+from telebot import types
+
+import scraper
 
 load_dotenv()
-bot = telebot.TeleBot(os.getenv('TOKEN'));
+TOKEN = os.getenv("TOKEN")
+assert TOKEN is not None
+bot = telebot.TeleBot(TOKEN)
 
 need_check = True
 price_from_pult = 0
 price_from_citilink = 0
 price_from_doctorhead = 0
 url_dict = {}
-active_thread = []
 interval = 600
 
 markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -26,74 +28,70 @@ markup.add(btn1, btn2)
 
 def get_company_name(url):
     parsed_url = urlparse(url)
-    website_name = parsed_url.netloc.split('.')
-    if len(website_name) == 3:
-        return website_name[1]
-    return website_name[0]
+    company_name = parsed_url.netloc.split(".")
+    if len(company_name) == 3:
+        return company_name[1]
+    return company_name[0]
 
 
 def check_price(user_id, urls):
     global need_check
-    global price_from_pult
+    price = 0
     while need_check:
         bot.send_message(user_id, "Я весь в работе")
         for url in urls.items():
+            print(url)
             new_price = scraper.get_price(url[1])
-            if price_from_pult != new_price:
-                price_from_pult = new_price
-                bot.send_message(user_id, url[0] + ": " + new_price + "р")
+            if price != new_price:
+                price = new_price
+                bot.send_message(user_id, url[0] + ": " + price + "р")
         time.sleep(600)
 
 
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=["start"])
 def start(message):
-    bot.send_message(message.chat.id,
-                     text="Привет, {0.first_name}!".format(
-                         message.from_user), reply_markup=markup)
-    SQLdata.execute_query(f"INSERT INTO users (user_id) VALUES ({message.chat.id})")
+    bot.send_message(
+        message.chat.id,
+        text="Привет, {0.first_name}!".format(message.from_user),
+        reply_markup=markup,
+    )
+    # SQLdata.execute_query(f"INSERT INTO users (user_id) VALUES ({message.chat.id})")
 
 
-@bot.message_handler(commands=['stop'])
+@bot.message_handler(commands=["stop"])
 def stop(message):
-    bot.send_message(message.chat.id, 'Бот остановлен')
+    bot.send_message(message.chat.id, "Бот остановлен")
 
 
-@bot.message_handler(content_types=['text'])
+@bot.message_handler(content_types=["text"])
 def get_text_messages(message):
     global need_check
     global url_dict
-    if message.text == "Ввести ссылки":
-        bot.send_message(message.from_user.id, "Отправьте ссылки на магазины")
+    price = scraper.get_price(message.text)
 
-    elif message.text[:len(scraper.pult_url)] == scraper.pult_url or \
-            message.text[:len(scraper.citilink_url)] == scraper.citilink_url or \
-            message.text[:len(scraper.doctorhead_url)] == scraper.doctorhead_url:
+    if price is not None:
         url_dict[get_company_name(message.text)] = message.text
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        btn1 = types.KeyboardButton("Нет")
-        btn2 = types.KeyboardButton("Да")
-        markup.add(btn1, btn2)
+        bot.send_message(message.from_user.id, "Ссылка добавлена")
 
-        bot.send_message(message.from_user.id, "Ссылка добавлена, добавить еще? 👀", reply_markup=markup)
-
-    elif message.text == "Да":
-        bot.send_message(message.from_user.id, "Жду ссылку :)")
-
-    elif message.text == "Нет":
+    elif message.text == "Начать отслеживание":
         need_check = True
-        bot.send_message(message.from_user.id, "Начинаю отслеживание 👀")
-        print(url_dict)
-        check_price(message.from_user.id, url_dict)
-
-    elif message.text == "/help":
-        bot.send_message(message.from_user.id, "Привет, введи ссылку на товар с сайта pult")
+        if len(url_dict) == 0:
+            bot.send_message(
+                message.from_user.id, "Вы еще не добавили ссылок для отслеживания :)"
+            )
+        else:
+            check_price(message.chat.id, url_dict)
+            bot.send_message(message.from_user.id, "Отслеживание началось")
 
     elif message.text == "Прекратить отслеживание":
         bot.send_message(message.from_user.id, "Отслеживание прекращено")
         need_check = False
-
-    else:
-        bot.send_message(message.from_user.id, "Я тебя не понимаю. Напиши /help.")
+        url_dict = {}
+    elif price is None:
+        bot.send_message(
+            message.from_user.id,
+            "Данная ссылка или текст не подходят для отслеживания, введите ссылку на товар из магазина Pult, Doctorhead, Citilink",
+        )
 
 
 bot.polling(none_stop=True, interval=0)
